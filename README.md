@@ -88,15 +88,12 @@ src/
     repositorio.ts                 persistência local com AsyncStorage
   componentes/                     interface
   tema.ts                          cores e espaçamentos
-testes/
-  executar.ts                      testes dos algoritmos e do protocolo
 ```
 
 Os algoritmos ficam em `src/algoritmos/` e o benchmark em `src/benchmark/protocolo.ts`.
-Nenhum deles usa `Array.prototype.sort`. O `sort` nativo aparece apenas em três
-lugares, sempre **fora** do trecho cronometrado: na preparação dos cenários
-"ordenado" e "inverso", no cálculo da mediana dos tempos e como referência de
-comparação nos testes.
+Nenhum deles usa `Array.prototype.sort`. O `sort` nativo aparece apenas fora do trecho
+cronometrado: na preparação dos cenários "ordenado" e "inverso" e no cálculo da mediana
+dos tempos.
 
 ## Metodologia de medição
 
@@ -166,18 +163,11 @@ sempre junto do resultado.
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # testes dos algoritmos e do protocolo
 ```
 
 Executados neste projeto:
 
 - `npx tsc --noEmit` sem erros.
-- 46 testes passando, cobrindo: entrada vazia, um item, aleatória, já ordenada,
-  ordem inversa, preços repetidos, estabilidade em empates, preservação de todos os
-  produtos, concordância com uma ordenação de referência em n = 500, leitura e
-  formatação de preços, geração reproduzível dos dados sintéticos, cálculo da
-  mediana, detecção de saídas erradas e execução ponta a ponta do benchmark
-  (10 amostras por algoritmo, mediana conferida contra as amostras guardadas).
 - `npx expo export --platform android` concluído: o bundle Metro é gerado sem erros.
 - Execução no navegador com `npm run web`: as duas abas renderizam, o cadastro e a
   ordenação funcionam e a comparação com 1.000 produtos aleatórios produziu medianas
