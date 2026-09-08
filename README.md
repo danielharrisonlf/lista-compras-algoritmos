@@ -100,7 +100,7 @@ comparação nos testes.
 
 ## Metodologia de medição
 
-Ao tocar em **Comparar algoritmos**:
+Ao tocar em **Comparar**:
 
 1. Uma única entrada é gerada e os três algoritmos recebem exatamente ela.
 2. Cada execução recebe uma cópia independente dessa entrada, feita **fora** do
@@ -110,14 +110,14 @@ Ao tocar em **Comparar algoritmos**:
 4. 10 execuções são medidas com `performance.now()`.
 5. A ordem dos algoritmos é alternada a cada rodada, para diluir viés de ordem.
 6. O valor comparado é a **mediana** (com 10 amostras, a média entre a 5ª e a 6ª
-   depois de ordenadas). Mínimo e máximo aparecem como informação adicional.
+   depois de ordenadas). As 10 amostras ficam guardadas no resultado para conferência.
 7. A saída é validada fora da medição: ordem crescente, mesma quantidade e
    exatamente os mesmos produtos da entrada.
 8. Nenhum log ou atualização de tela acontece dentro do trecho cronometrado.
 
-O aplicativo também estima a resolução do relógio e avisa quando as medianas
-ficam próximas dela — nesse caso a comparação não é conclusiva e o `n` precisa
-aumentar.
+O aplicativo também estima a resolução do relógio e avisa quando a diferença
+entre as medianas fica dentro dessa margem. Nesse caso a comparação não separa
+os algoritmos e o `n` precisa aumentar.
 
 Os dados de teste são gerados por um gerador pseudoaleatório com semente fixa
 (`20260908`), então a mesma opção produz sempre a mesma entrada, em qualquer
@@ -140,7 +140,7 @@ aparelho e em qualquer execução.
 Separe claramente o que foi medido na web e o que foi medido no nativo.
 
 **Web (Chrome DevTools):** rode `npm run web`, abra o DevTools (F12), vá em
-**Performance**, clique em gravar, toque em *Comparar algoritmos*, pare a gravação
+**Performance**, clique em gravar, toque em *Comparar*, pare a gravação
 e observe o bloco longo de tarefa da thread principal. A aba **Memory** permite
 tirar snapshots do heap JavaScript antes e depois de gerar 5.000 produtos.
 
@@ -158,8 +158,8 @@ Os dados sintéticos do benchmark **nunca** passam por ali: são criados em mem�
 no momento da comparação e descartados depois. Gerar 5.000 produtos de teste não
 apaga, não altera e não mistura nada com os produtos cadastrados pelo usuário.
 
-Na aba **Comparar algoritmos**, a opção *Dados de teste* usa os dados sintéticos e
-a opção *Minha lista* usa uma cópia dos produtos reais. A origem dos dados aparece
+Na aba **Comparação**, a opção *De teste* usa os dados sintéticos e a opção
+*Minha lista* usa uma cópia dos produtos reais. A origem dos dados aparece
 sempre junto do resultado.
 
 ## Verificações realizadas
@@ -179,8 +179,11 @@ Executados neste projeto:
   mediana, detecção de saídas erradas e execução ponta a ponta do benchmark
   (10 amostras por algoritmo, mediana conferida contra as amostras guardadas).
 - `npx expo export --platform android` concluído: o bundle Metro é gerado sem erros.
+- Execução no navegador com `npm run web`: as duas abas renderizam, o cadastro e a
+  ordenação funcionam e a comparação com 1.000 produtos aleatórios produziu medianas
+  reais nas três implementações.
 
 Não verificado: a execução em celular ou emulador. Nenhum aparelho Android ou iOS
 estava disponível no ambiente onde o projeto foi montado, então o comportamento da
-interface no Expo Go e os tempos reais de cada algoritmo em aparelho ainda precisam
-ser conferidos pelo grupo antes da apresentação.
+interface no Expo Go e os tempos de cada algoritmo em aparelho ainda precisam ser
+conferidos pelo grupo antes da apresentação.

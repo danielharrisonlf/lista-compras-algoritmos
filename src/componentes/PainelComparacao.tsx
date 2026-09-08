@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ALGORITMOS } from "../algoritmos";
 import {
   CENARIOS,
-  DESCRICAO_CENARIO,
   ROTULO_CENARIO,
   SEMENTE_PADRAO,
   TAMANHOS_DISPONIVEIS,
@@ -12,28 +10,21 @@ import {
   type TamanhoEntrada,
 } from "../benchmark/dadosSinteticos";
 import {
-  AQUECIMENTOS,
-  REPETICOES,
   executarBenchmark,
   type ProgressoBenchmark,
+  type ResultadoAlgoritmo,
   type ResultadoBenchmark,
 } from "../benchmark/protocolo";
-import { formatarPreco } from "../dominio/preco";
 import type { Produto } from "../dominio/produto";
-import { cores, espaco, raio } from "../tema";
+import { cores, espaco } from "../tema";
 import { Botao } from "./Botao";
-import { Cartao } from "./Cartao";
-import { SeletorSegmentado } from "./SeletorSegmentado";
+import { Escolha } from "./Escolha";
 
 type Fonte = "lista" | "sinteticos";
 
-type Props = {
-  produtos: Produto[];
-  versaoLista: number;
-};
+type Props = { produtos: Produto[]; versaoLista: number };
 
 const MINIMO_PARA_COMPARAR = 2;
-const ITENS_NA_AMOSTRA = 5;
 
 export function PainelComparacao({ produtos, versaoLista }: Props) {
   const [fonte, setFonte] = useState<Fonte>("sinteticos");
@@ -43,28 +34,21 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
   const [progresso, setProgresso] = useState<ProgressoBenchmark | null>(null);
   const [resultado, setResultado] = useState<ResultadoBenchmark | null>(null);
 
-  const assinaturaAtual =
+  const assinatura =
     fonte === "lista"
       ? `lista:v${versaoLista}:n${produtos.length}`
       : `sinteticos:n${tamanho}:${cenario}:s${SEMENTE_PADRAO}`;
 
-  const entradaInsuficiente = fonte === "lista" && produtos.length < MINIMO_PARA_COMPARAR;
-  const resultadoDesatualizado = resultado !== null && resultado.assinatura !== assinaturaAtual;
+  const semDadosSuficientes = fonte === "lista" && produtos.length < MINIMO_PARA_COMPARAR;
+  const desatualizado = resultado !== null && resultado.assinatura !== assinatura;
 
-  const amostra = useMemo(() => {
-    if (fonte === "lista") return produtos.slice(0, ITENS_NA_AMOSTRA);
-    return gerarProdutos(tamanho, cenario).slice(0, ITENS_NA_AMOSTRA);
-  }, [fonte, produtos, tamanho, cenario]);
-
-  const descricaoEntrada =
+  const descricao =
     fonte === "lista"
-      ? `Minha lista — ${produtos.length} ${produtos.length === 1 ? "produto" : "produtos"}`
-      : `Dados de teste — ${formatarNumero(tamanho)} produtos, cenário ${ROTULO_CENARIO[
-          cenario
-        ].toLowerCase()} (semente ${SEMENTE_PADRAO})`;
+      ? `Sua lista, ${produtos.length} ${produtos.length === 1 ? "produto" : "produtos"}`
+      : `${formatarNumero(tamanho)} produtos de teste, ${ROTULO_CENARIO[cenario].toLowerCase()}`;
 
   async function comparar() {
-    if (executando || entradaInsuficiente) return;
+    if (executando || semDadosSuficientes) return;
 
     setExecutando(true);
     setProgresso(null);
@@ -73,18 +57,19 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
     const entrada = fonte === "lista" ? produtos.slice() : gerarProdutos(tamanho, cenario);
 
     try {
-      const saida = await executarBenchmark(
-        entrada,
-        descricaoEntrada,
-        assinaturaAtual,
-        setProgresso,
-      );
-      setResultado(saida);
+      setResultado(await executarBenchmark(entrada, descricao, assinatura, setProgresso));
     } finally {
       setExecutando(false);
       setProgresso(null);
     }
   }
+
+  const maiorMediana = resultado
+    ? Math.max(...resultado.resultados.map((r) => r.medianaMs))
+    : 0;
+  const maisRapido = resultado
+    ? resultado.resultados.reduce((a, b) => (b.medianaMs < a.medianaMs ? b : a))
+    : null;
 
   return (
     <ScrollView
@@ -92,24 +77,29 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Cartao
-        titulo="Dados da comparação"
-        descricao="Os três algoritmos recebem exatamente a mesma entrada. Os dados de teste são gerados à parte e não alteram a sua lista de compras."
-      >
-        <SeletorSegmentado
+      <Text style={estilos.abertura}>
+        Os três algoritmos ordenam a mesma lista pelo mesmo critério. Aqui dá para ver quanto cada
+        um demora quando a lista cresce.
+      </Text>
+
+      <View style={estilos.bloco}>
+        <Text style={estilos.rotulo}>Dados</Text>
+        <Escolha
           opcoes={[
-            { valor: "sinteticos", rotulo: "Dados de teste" },
+            { valor: "sinteticos", rotulo: "De teste" },
             { valor: "lista", rotulo: "Minha lista" },
           ]}
           selecionado={fonte}
           aoSelecionar={setFonte}
           desabilitado={executando}
         />
+      </View>
 
-        {fonte === "sinteticos" ? (
-          <>
-            <Rotulo texto="Quantidade de produtos (n)" />
-            <SeletorSegmentado
+      {fonte === "sinteticos" ? (
+        <>
+          <View style={estilos.bloco}>
+            <Text style={estilos.rotulo}>Quantidade de produtos</Text>
+            <Escolha
               opcoes={TAMANHOS_DISPONIVEIS.map((t) => ({
                 valor: String(t),
                 rotulo: formatarNumero(t),
@@ -118,176 +108,120 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
               aoSelecionar={(v) => setTamanho(Number(v) as TamanhoEntrada)}
               desabilitado={executando}
             />
+          </View>
 
-            <Rotulo texto="Cenário" />
-            <SeletorSegmentado
+          <View style={estilos.bloco}>
+            <Text style={estilos.rotulo}>Ordem inicial</Text>
+            <Escolha
               opcoes={CENARIOS.map((c) => ({ valor: c, rotulo: ROTULO_CENARIO[c] }))}
               selecionado={cenario}
               aoSelecionar={setCenario}
               desabilitado={executando}
             />
-            <Text style={estilos.ajuda}>{DESCRICAO_CENARIO[cenario]}</Text>
-          </>
-        ) : (
-          <Text style={estilos.ajuda}>
-            Usa uma cópia dos produtos cadastrados no aparelho. Com poucos itens os tempos ficam
-            pequenos demais para comparar; os dados de teste servem para aumentar o n.
-          </Text>
-        )}
-
-        <View style={estilos.blocoEntrada}>
-          <Text style={estilos.entradaTitulo}>{descricaoEntrada}</Text>
-          {amostra.length > 0 ? (
-            <>
-              <Text style={estilos.entradaLegenda}>
-                Amostra dos {amostra.length} primeiros itens da entrada:
-              </Text>
-              {amostra.map((p) => (
-                <Text key={p.id} style={estilos.entradaItem} numberOfLines={1}>
-                  {"•"} {p.nome} — {formatarPreco(p.precoCentavos)}
-                </Text>
-              ))}
-            </>
-          ) : (
-            <Text style={estilos.entradaLegenda}>Nenhum produto cadastrado ainda.</Text>
-          )}
-        </View>
-
-        {entradaInsuficiente ? (
-          <Aviso
-            tom="alerta"
-            texto={`Cadastre pelo menos ${MINIMO_PARA_COMPARAR} produtos para comparar usando a sua lista, ou escolha "Dados de teste".`}
-          />
-        ) : null}
-
-        {fonte === "sinteticos" && tamanho === 5000 ? (
-          <Aviso
-            tom="alerta"
-            texto="Com 5.000 produtos os algoritmos O(n²) levam bem mais tempo; a comparação inteira pode demorar dezenas de segundos e a tela fica presa durante cada ordenação."
-          />
-        ) : null}
-
-        <Botao
-          titulo={executando ? "Medindo..." : "Comparar algoritmos"}
-          aoPressionar={comparar}
-          desabilitado={entradaInsuficiente}
-          carregando={executando}
-        />
-
-        {executando ? (
-          <View style={estilos.progresso} accessibilityLiveRegion="polite">
-            <ActivityIndicator color={cores.primaria} />
-            <Text style={estilos.progressoTexto}>
-              {progresso
-                ? `Rodada ${progresso.rodada} de ${progresso.totalRodadas} — ${progresso.algoritmo}`
-                : "Aquecendo o motor JavaScript..."}
-            </Text>
           </View>
-        ) : null}
-      </Cartao>
+        </>
+      ) : (
+        <Text style={estilos.aviso}>
+          Usa uma cópia dos seus produtos. Os dados de teste servem para chegar a listas grandes.
+        </Text>
+      )}
 
-      {resultado ? (
-        <Cartao titulo="Resultado da medição">
-          {resultadoDesatualizado ? (
-            <Aviso
-              tom="alerta"
-              texto={
-                "Resultado anterior: a entrada ou as opções mudaram depois desta medição. Toque em Comparar algoritmos novamente."
-              }
-            />
-          ) : null}
-
-          <Text style={estilos.metaEntrada}>{resultado.descricaoEntrada}</Text>
-          <Text style={estilos.ajuda}>
-            n = {formatarNumero(resultado.tamanho)} · {resultado.repeticoes} execuções medidas ·{" "}
-            {resultado.aquecimentos} de aquecimento descartada · valor comparado: mediana
-          </Text>
-
-          <View style={estilos.tabela}>
-            <View style={[estilos.tabelaLinha, estilos.tabelaCabecalho]}>
-              <Text style={[estilos.celulaCabecalho, estilos.colAlgoritmoTexto]}>Algoritmo</Text>
-              <Text style={[estilos.celulaCabecalho, estilos.colNumero]}>Mediana (ms)</Text>
-              <Text style={[estilos.celulaCabecalho, estilos.colNumero]}>Mín–Máx</Text>
-            </View>
-            {resultado.resultados.map((r) => (
-              <View key={r.id} style={estilos.tabelaLinha}>
-                <View style={estilos.colAlgoritmo}>
-                  <Text style={estilos.celulaNome}>{r.nome}</Text>
-                  <Text style={estilos.celulaComplexidade}>
-                    tempo {r.casoMedio} · memória {r.memoriaAuxiliar}
-                  </Text>
-                  {!r.saidaValida ? (
-                    <Text style={estilos.celulaInvalida}>
-                      Saída inválida — verificar implementação
-                    </Text>
-                  ) : null}
-                </View>
-                <Text style={[estilos.colNumero, estilos.celulaNumero]}>
-                  {formatarMs(r.medianaMs)}
-                </Text>
-                <Text style={[estilos.colNumero, estilos.celulaSecundaria]}>
-                  {formatarMs(r.minimoMs)}–{formatarMs(r.maximoMs)}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {resultado.proximoDaResolucao ? (
-            <Aviso
-              tom="alerta"
-              texto={`Os tempos estão próximos da resolução do relógio (cerca de ${formatarMs(
-                resultado.resolucaoRelogioMs,
-              )} ms). Neste cenário a comparação não é conclusiva: aumente o n.`}
-            />
-          ) : null}
-
-          <Text style={estilos.ajuda}>
-            Os números valem para este aparelho, este cenário e este tamanho de entrada, com o
-            aplicativo em modo de desenvolvimento no Expo Go. Não são o tempo de inicialização do
-            aplicativo nem uma medida de CPU, memória ou bateria.
-          </Text>
-        </Cartao>
+      {semDadosSuficientes ? (
+        <Text style={estilos.aviso}>Cadastre pelo menos dois produtos ou use dados de teste.</Text>
       ) : null}
 
-      <Cartao titulo="Como ler estes números">
-        <Text style={estilos.paragrafo}>
-          <Text style={estilos.negrito}>n</Text> é a quantidade de produtos a ordenar. A notação
-          Big-O descreve como o trabalho cresce quando n cresce, ignorando constantes e o aparelho.
-          O tempo em milissegundos é uma medida real deste celular agora. São coisas diferentes e
-          podem discordar em listas pequenas.
+      {fonte === "sinteticos" && tamanho === 5000 ? (
+        <Text style={estilos.aviso}>
+          Com 5.000 produtos a comparação leva dezenas de segundos e a tela trava a cada ordenação.
         </Text>
-        {ALGORITMOS.map((a) => (
-          <View key={a.id} style={estilos.blocoAlgoritmo}>
-            <Text style={estilos.algoritmoNome}>{a.nome}</Text>
-            <Text style={estilos.paragrafo}>{a.resumo}</Text>
-            <Text style={estilos.algoritmoMeta}>
-              Melhor {a.melhorCaso} · Médio {a.casoMedio} · Pior {a.piorCaso} · Memória auxiliar{" "}
-              {a.memoriaAuxiliar}
+      ) : null}
+
+      <Botao
+        titulo="Comparar"
+        aoPressionar={comparar}
+        desabilitado={semDadosSuficientes}
+        carregando={executando}
+      />
+
+      {executando ? (
+        <View style={estilos.progresso} accessibilityLiveRegion="polite">
+          <ActivityIndicator color={cores.tinta} />
+          <Text style={estilos.progressoTexto}>
+            {progresso
+              ? `Medição ${progresso.rodada} de ${progresso.totalRodadas}, ${progresso.algoritmo}`
+              : "Aquecendo"}
+          </Text>
+        </View>
+      ) : null}
+
+      {resultado ? (
+        <View style={estilos.resultado}>
+          <Text style={estilos.resultadoTitulo}>{resultado.descricaoEntrada}</Text>
+          <Text style={estilos.meta}>
+            {resultado.repeticoes} medições por algoritmo, valor exibido: mediana
+          </Text>
+
+          {desatualizado ? (
+            <Text style={estilos.aviso}>
+              Você mudou as opções depois desta medição. Compare de novo.
             </Text>
-          </View>
-        ))}
-        <Text style={estilos.ajuda}>
-          Protocolo: mesma entrada para os três, cópia feita fora do cronômetro, {AQUECIMENTOS}{" "}
-          execução de aquecimento descartada, {REPETICOES} execuções medidas, ordem dos algoritmos
-          alternada a cada rodada e conferência da saída fora da medição.
-        </Text>
-      </Cartao>
+          ) : null}
+
+          {resultado.resultados.map((r) => (
+            <Barra
+              key={r.id}
+              resultado={r}
+              proporcao={maiorMediana > 0 ? r.medianaMs / maiorMediana : 0}
+              vencedor={maisRapido?.id === r.id}
+            />
+          ))}
+
+          {resultado.proximoDaResolucao ? (
+            <Text style={estilos.aviso}>
+              Os tempos são curtos demais para separar os algoritmos. Aumente a quantidade de
+              produtos.
+            </Text>
+          ) : null}
+
+          <Text style={estilos.rodape}>
+            Medido neste aparelho, no Expo Go em modo de desenvolvimento. É o tempo do algoritmo,
+            não o tempo de abertura do aplicativo.
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
 
-function Rotulo({ texto }: { texto: string }) {
-  return <Text style={estilos.rotulo}>{texto}</Text>;
-}
-
-function Aviso({ texto, tom }: { texto: string; tom: "alerta" | "erro" }) {
+function Barra({
+  resultado,
+  proporcao,
+  vencedor,
+}: {
+  resultado: ResultadoAlgoritmo;
+  proporcao: number;
+  vencedor: boolean;
+}) {
   return (
-    <Text
-      style={[estilos.aviso, tom === "erro" ? estilos.avisoErro : estilos.avisoAlerta]}
-      accessibilityLiveRegion="polite"
-    >
-      {texto}
-    </Text>
+    <View style={estilos.barraBloco}>
+      <View style={estilos.barraTopo}>
+        <Text style={estilos.barraNome}>{resultado.nome}</Text>
+        <Text style={estilos.barraValor}>{formatarMs(resultado.medianaMs)} ms</Text>
+      </View>
+      <View style={estilos.barraTrilho}>
+        <View
+          style={[
+            estilos.barraPreenchida,
+            { width: `${Math.max(proporcao * 100, 1.5)}%` },
+            vencedor && { backgroundColor: cores.etiqueta },
+          ]}
+        />
+      </View>
+      <Text style={estilos.barraMeta}>
+        {resultado.casoMedio} no caso médio, memória {resultado.memoriaAuxiliar}
+        {resultado.saidaValida ? "" : ", saída inválida"}
+      </Text>
+    </View>
   );
 }
 
@@ -298,68 +232,32 @@ function formatarNumero(valor: number): string {
 function formatarMs(ms: number): string {
   if (!Number.isFinite(ms)) return "—";
   if (ms >= 100) return ms.toFixed(0);
-  if (ms >= 1) return ms.toFixed(2);
-  return ms.toFixed(3);
+  if (ms >= 1) return ms.toFixed(1);
+  return ms.toFixed(2);
 }
 
 const estilos = StyleSheet.create({
-  conteudo: { padding: espaco.lg, gap: espaco.lg, paddingBottom: espaco.xxl },
-  rotulo: { fontSize: 12, fontWeight: "700", color: cores.textoSuave, textTransform: "uppercase" },
-  ajuda: { fontSize: 12, lineHeight: 18, color: cores.textoSuave },
-  paragrafo: { fontSize: 14, lineHeight: 21, color: cores.texto },
-  negrito: { fontWeight: "700" },
-  blocoEntrada: {
-    backgroundColor: cores.superficieSuave,
-    borderRadius: raio.md,
-    padding: espaco.md,
-    gap: espaco.xs,
-  },
-  entradaTitulo: { fontSize: 13, fontWeight: "700", color: cores.texto },
-  entradaLegenda: { fontSize: 12, color: cores.textoSuave },
-  entradaItem: { fontSize: 12, color: cores.texto },
+  conteudo: { paddingHorizontal: espaco.xl, paddingTop: espaco.xl, paddingBottom: espaco.xxl, gap: espaco.xl },
+  abertura: { fontSize: 16, lineHeight: 24, color: cores.tinta },
+  bloco: { gap: espaco.xs },
+  rotulo: { fontSize: 13, color: cores.suave },
+  aviso: { fontSize: 13, lineHeight: 19, color: cores.alerta },
   progresso: { flexDirection: "row", alignItems: "center", gap: espaco.md },
-  progressoTexto: { fontSize: 13, color: cores.textoSuave, flex: 1 },
-  metaEntrada: { fontSize: 14, fontWeight: "700", color: cores.texto },
-  tabela: { borderWidth: 1, borderColor: cores.borda, borderRadius: raio.md, overflow: "hidden" },
-  tabelaCabecalho: { backgroundColor: cores.superficieSuave },
-  tabelaLinha: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: espaco.sm,
-    paddingHorizontal: espaco.md,
-    paddingVertical: espaco.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: cores.borda,
-  },
-  celulaCabecalho: {
-    fontSize: 11,
+  progressoTexto: { fontSize: 14, color: cores.suave, flex: 1 },
+  resultado: { gap: espaco.lg, borderTopWidth: 1, borderTopColor: cores.tinta, paddingTop: espaco.lg },
+  resultadoTitulo: { fontSize: 17, fontWeight: "700", color: cores.tinta },
+  meta: { fontSize: 13, color: cores.suave, marginTop: -espaco.md },
+  barraBloco: { gap: espaco.xs },
+  barraTopo: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  barraNome: { fontSize: 16, color: cores.tinta },
+  barraValor: {
+    fontSize: 22,
     fontWeight: "700",
-    color: cores.textoSuave,
-    textTransform: "uppercase",
+    color: cores.tinta,
+    fontVariant: ["tabular-nums"],
   },
-  colAlgoritmo: { flex: 1.6, gap: 2 },
-  colAlgoritmoTexto: { flex: 1.6 },
-  colNumero: { flex: 1, textAlign: "right", fontSize: 13, color: cores.texto },
-  celulaNome: { fontSize: 14, fontWeight: "700", color: cores.texto },
-  celulaComplexidade: { fontSize: 11, color: cores.textoSuave },
-  celulaInvalida: { fontSize: 11, fontWeight: "700", color: cores.erro },
-  celulaNumero: { fontWeight: "700", fontVariant: ["tabular-nums"] },
-  celulaSecundaria: { color: cores.textoSuave, fontVariant: ["tabular-nums"] },
-  aviso: {
-    fontSize: 12,
-    lineHeight: 18,
-    borderRadius: raio.sm,
-    paddingHorizontal: espaco.md,
-    paddingVertical: espaco.sm,
-  },
-  avisoAlerta: { color: cores.alerta, backgroundColor: cores.alertaSuave },
-  avisoErro: { color: cores.erro, backgroundColor: cores.erroSuave },
-  blocoAlgoritmo: {
-    gap: espaco.xs,
-    borderLeftWidth: 3,
-    borderLeftColor: cores.primariaSuave,
-    paddingLeft: espaco.md,
-  },
-  algoritmoNome: { fontSize: 14, fontWeight: "700", color: cores.primaria },
-  algoritmoMeta: { fontSize: 11, color: cores.textoSuave },
+  barraTrilho: { height: 10, backgroundColor: cores.superficie },
+  barraPreenchida: { height: 10, backgroundColor: cores.linha },
+  barraMeta: { fontSize: 12, color: cores.suave },
+  rodape: { fontSize: 12, lineHeight: 18, color: cores.suave },
 });

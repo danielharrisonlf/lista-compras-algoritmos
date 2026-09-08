@@ -1,10 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from "react-native";
-import { cores, espaco, raio } from "../tema";
+import { cores, espaco } from "../tema";
 
 type Props = {
   titulo: string;
   aoPressionar: () => void;
-  variante?: "primaria" | "secundaria" | "perigo";
+  quieto?: boolean;
   desabilitado?: boolean;
   carregando?: boolean;
   estilo?: ViewStyle;
@@ -13,12 +13,13 @@ type Props = {
 export function Botao({
   titulo,
   aoPressionar,
-  variante = "primaria",
+  quieto = false,
   desabilitado = false,
   carregando = false,
   estilo,
 }: Props) {
   const inativo = desabilitado || carregando;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -27,16 +28,16 @@ export function Botao({
       disabled={inativo}
       style={({ pressed }) => [
         estilos.base,
-        estilos[variante],
-        pressed && !inativo && estilos.pressionado,
-        inativo && estilos.inativo,
+        quieto ? estilos.quieto : estilos.forte,
+        pressed && !inativo && { opacity: 0.7 },
+        inativo && { opacity: 0.4 },
         estilo,
       ]}
     >
       {carregando ? (
-        <ActivityIndicator color={variante === "primaria" ? cores.sobrePrimaria : cores.primaria} />
+        <ActivityIndicator color={quieto ? cores.tinta : cores.papel} />
       ) : (
-        <Text style={[estilos.texto, estilos[`texto_${variante}`]]}>{titulo}</Text>
+        <Text style={[estilos.texto, quieto && { color: cores.tinta }]}>{titulo}</Text>
       )}
     </Pressable>
   );
@@ -44,21 +45,12 @@ export function Botao({
 
 const estilos = StyleSheet.create({
   base: {
-    minHeight: 46,
+    minHeight: 48,
     paddingHorizontal: espaco.lg,
-    paddingVertical: espaco.md,
-    borderRadius: raio.md,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
   },
-  primaria: { backgroundColor: cores.primaria, borderColor: cores.primaria },
-  secundaria: { backgroundColor: cores.superficie, borderColor: cores.borda },
-  perigo: { backgroundColor: cores.erroSuave, borderColor: cores.erroSuave },
-  pressionado: { opacity: 0.75 },
-  inativo: { opacity: 0.45 },
-  texto: { fontSize: 15, fontWeight: "600" },
-  texto_primaria: { color: cores.sobrePrimaria },
-  texto_secundaria: { color: cores.texto },
-  texto_perigo: { color: cores.erro },
+  forte: { backgroundColor: cores.tinta },
+  quieto: { borderWidth: 1, borderColor: cores.tinta },
+  texto: { fontSize: 15, fontWeight: "600", color: cores.papel },
 });

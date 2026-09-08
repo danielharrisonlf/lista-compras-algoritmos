@@ -164,7 +164,8 @@ export async function executarBenchmark(
     };
   });
 
-  const menorMediana = Math.min(...resultados.map((r) => r.medianaMs));
+  const medianas = resultados.map((r) => r.medianaMs);
+  const diferenca = Math.max(...medianas) - Math.min(...medianas);
 
   return {
     descricaoEntrada,
@@ -172,7 +173,7 @@ export async function executarBenchmark(
     repeticoes: REPETICOES,
     aquecimentos: AQUECIMENTOS,
     resolucaoRelogioMs,
-    proximoDaResolucao: menorMediana < resolucaoRelogioMs * 10,
+    proximoDaResolucao: diferenca < resolucaoRelogioMs * 3,
     resultados,
     assinatura,
   };
