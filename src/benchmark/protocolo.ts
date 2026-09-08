@@ -5,9 +5,9 @@ export const REPETICOES = 10;
 export const AQUECIMENTOS = 2;
 
 export function loteDeBuscas(tamanho: number): number {
-  if (tamanho <= 1_000) return 200;
-  if (tamanho <= 10_000) return 50;
-  return 10;
+  if (tamanho <= 1_000) return 2_000;
+  if (tamanho <= 10_000) return 500;
+  return 100;
 }
 
 export type ResultadoAlgoritmo = {

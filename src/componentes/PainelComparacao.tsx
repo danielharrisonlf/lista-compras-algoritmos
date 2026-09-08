@@ -41,7 +41,6 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
       : `sinteticos:n${tamanho}:${cenario}`;
 
   const semDados = fonte === "lista" && produtos.length < MINIMO_PARA_COMPARAR;
-  const desatualizado = resultado !== null && resultado.assinatura !== assinatura;
 
   const descricao =
     fonte === "lista"
@@ -92,7 +91,10 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
             { valor: "lista", rotulo: "Minha lista" },
           ]}
           selecionado={fonte}
-          aoSelecionar={setFonte}
+          aoSelecionar={(v) => {
+            setFonte(v);
+            setResultado(null);
+          }}
           desabilitado={executando}
         />
       </View>
@@ -106,7 +108,10 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
               rotulo: formatarNumero(t),
             }))}
             selecionado={String(tamanho)}
-            aoSelecionar={(v) => setTamanho(Number(v) as TamanhoEntrada)}
+            aoSelecionar={(v) => {
+              setTamanho(Number(v) as TamanhoEntrada);
+              setResultado(null);
+            }}
             desabilitado={executando}
           />
         </View>
@@ -117,7 +122,10 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
         <Escolha
           opcoes={CENARIOS.map((c) => ({ valor: c, rotulo: ROTULO_CENARIO[c] }))}
           selecionado={cenario}
-          aoSelecionar={setCenario}
+          aoSelecionar={(v) => {
+            setCenario(v);
+            setResultado(null);
+          }}
           desabilitado={executando}
         />
       </View>
@@ -151,12 +159,6 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
             Preço procurado {formatarPreco(resultado.precoAlvoCentavos)}, {resultado.repeticoes}{" "}
             medições de {resultado.loteBuscas} buscas cada, valor exibido: mediana
           </Text>
-
-          {desatualizado ? (
-            <Text style={estilos.aviso}>
-              Você mudou as opções depois desta medição. Compare de novo.
-            </Text>
-          ) : null}
 
           {!resultado.resultadosConcordam ? (
             <Text style={estilos.aviso}>
@@ -215,7 +217,11 @@ function formatarNumero(valor: number): string {
 
 function formatarTempo(ms: number): string {
   if (!Number.isFinite(ms)) return "—";
-  if (ms < 0.001) return `${(ms * 1_000_000).toFixed(0)} ns`;
+  if (ms <= 0 || ms < 0.00001) return "< 10 ns";
+  if (ms < 0.001) {
+    const ns = ms * 1_000_000;
+    return ns < 10 ? "< 10 ns" : `${ns.toFixed(0)} ns`;
+  }
   if (ms < 1) return `${(ms * 1000).toFixed(1)} µs`;
   return `${ms.toFixed(2)} ms`;
 }
