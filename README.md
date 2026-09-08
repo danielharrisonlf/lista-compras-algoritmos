@@ -1,33 +1,33 @@
-# Lista de Compras — comparador de algoritmos de ordenação
+# Lista de Compras — Comparador de Algoritmos de Busca
 
-Trabalho da disciplina de Alta Performance Mobile. O aplicativo é uma lista de compras
-com preços: o usuário cadastra produtos e os organiza do mais barato para o mais caro.
-Essa mesma operação — ordenar por preço — é implementada por **três algoritmos**
-escritos do zero, que o aplicativo mede e compara em tempo real.
+Trabalho da disciplina de Alta Performance Mobile. O aplicativo é uma lista de compras com controle de preços onde o usuário cadastra produtos e pode pesquisar itens por preço exato.
 
-Algoritmos implementados (todos da lista do enunciado):
+Para atender aos requisitos do enunciado, a operação de pesquisa de produtos foi implementada com **dois algoritmos da lista oficial**, confrontando duas classes de complexidade assintótica (Big-O) fundamentais:
 
-- **Bubble Sort** (bolha), com parada antecipada
-- **Insertion Sort** (ordenação por inserção)
-- **Merge Sort** (ordenação por intercalação)
+- **Busca Linear**: classe linear **$O(n)$** (faixa amarela do gráfico de complexidade)
+- **Busca Binária**: classe logarítmica **$O(\log n)$** (faixa verde do gráfico de complexidade)
+
+Ambos foram escritos do zero em TypeScript (sem utilizar funções prontas de busca), e o aplicativo permite compará-los tanto de forma interativa quanto por meio de um módulo de benchmark em tempo real.
+
+---
 
 ## Tabela de complexidades
 
-Referente às implementações deste repositório, com `n` = quantidade de produtos.
+Referente às implementações deste repositório, com `n` = quantidade de produtos cadastrados/avaliados.
 
-| Algoritmo | Melhor caso | Caso médio | Pior caso | Memória auxiliar | Estável |
-|---|---|---|---|---|---|
-| Bubble Sort (com parada antecipada) | O(n) | O(n²) | O(n²) | O(1) | sim |
-| Insertion Sort | O(n) | O(n²) | O(n²) | O(1) | sim |
-| Merge Sort | O(n log n) | O(n log n) | O(n log n) | O(n) | sim |
+| Algoritmo | Notação Big-O (Caso Médio / Pior) | Faixa no Gráfico | Melhor caso | Caso médio | Pior caso | Memória auxiliar | Pré-requisito |
+|---|---|---|---|---|---|---|---|
+| **Busca Linear** | **$O(n)$** | 🟡 Amarelo (Linear) | $O(1)$ | $O(n)$ | $O(n)$ | $O(1)$ | Nenhum (funciona em lista desordenada) |
+| **Busca Binária** | **$O(\log n)$** | 🟢 Verde (Sublinear) | $O(1)$ | $O(\log n)$ | $O(\log n)$ | $O(1)$ | A lista precisa estar previamente ordenada |
 
-A coluna de memória auxiliar se refere ao **algoritmo**, não ao consumo total do
-aplicativo nem às cópias feitas pelo benchmark antes de cronometrar.
+### Análise teórica da comparação
+1. **Busca Linear ($O(n)$):** Inicia no primeiro elemento e examina item por item sequencialmente.
+   - Em uma lista de $100.000$ produtos, no pior caso (o item procurado é o último ou não existe), o algoritmo precisa realizar exatamente **$100.000$ comparações**.
+2. **Busca Binária ($O(\log n)$):** Compara o elemento alvo com o valor central da lista. Se não for igual, descarta metade da lista e repete.
+   - Em uma lista de $100.000$ produtos, no pior caso, o algoritmo realiza no máximo $\lceil \log_2(100.000) \rceil = \mathbf{17}$ **comparações**.
+   - **Ganho de eficiência:** A Busca Binária reduz o esforço computacional em mais de **$5.800\times$** para $n = 100.000$.
 
-O melhor caso O(n) do Bubble e do Insertion depende da entrada já estar ordenada:
-o Bubble encerra na primeira passagem sem trocas e o laço interno do Insertion
-nunca executa. O Merge Sort não tem esse atalho — ele divide e intercala do mesmo
-jeito em qualquer ordem de entrada, e por isso paga O(n) de memória extra.
+---
 
 ## Pré-requisitos e versões usadas
 
@@ -39,125 +39,89 @@ jeito em qualquer ordem de entrada, e por isso paga O(n) de memória extra.
 | React Native | 0.86.3 |
 | React | 19.2.3 |
 | TypeScript | 6.0.3 |
-| Expo Go | versão compatível com o SDK 57 (App Store / Play Store) |
+| Expo Go | Versão compatível com SDK 57 (App Store / Google Play) |
 
-## Como executar
+---
+
+## Como executar o projeto
 
 ```bash
 npm install
 npm start
 ```
 
-O terminal mostra um QR Code. No celular:
+O terminal exibirá o QR Code para execução no celular via Expo Go:
+- **Android:** Abra o app **Expo Go** e faça a leitura do QR Code pela câmera integrada do app.
+- **iOS:** Abra a câmera do iPhone e aponte para o QR Code para abrir no Expo Go.
 
-- **Android:** abra o app **Expo Go** e leia o QR Code pela própria tela do app.
-- **iOS:** leia o QR Code com a câmera do sistema e abra no Expo Go.
-
-O celular e o computador precisam estar na **mesma rede Wi-Fi**. Se a rede bloquear
-essa conexão (Wi-Fi corporativo, universidade, redes com isolamento de clientes),
-use o modo túnel, que roteia por servidor externo e não depende da rede local:
-
+### Execução na Web (ideal para o Chrome DevTools)
 ```bash
-npx expo start --tunnel
+npm run web
 ```
+Abre a aplicação diretamente no navegador (porta `8081`), permitindo inspecionar CPU, memória e tempo de execução detalhados.
 
-Outras formas de rodar:
-
-```bash
-npm run android   # emulador ou aparelho Android conectado via ADB
-npm run web       # navegador, útil para usar o Chrome DevTools
-```
+---
 
 ## Estrutura dos arquivos
 
 ```
-App.tsx                            tela principal, estado da lista e abas
+App.tsx                            Navegação por abas e estado da lista
 src/
   algoritmos/
-    bubbleSort.ts                  Bubble Sort com parada antecipada
-    insertionSort.ts               Insertion Sort com deslocamentos
-    mergeSort.ts                   Merge Sort com intercalação por índices
-    index.ts                       registro dos algoritmos e complexidades
+    buscaLinear.ts                 Busca sequencial O(n) com contador de passos
+    buscaBinaria.ts                Busca por divisão e conquista O(log n)
+    index.ts                       Registro dos algoritmos e metadados de Big-O
   benchmark/
-    dadosSinteticos.ts             geração reproduzível de 100/1.000/5.000 produtos
-    protocolo.ts                   medição, mediana e validação das saídas
+    dadosSinteticos.ts             Geração determinística de 1.000, 10.000 e 100.000 produtos
+    protocolo.ts                   Protocolo de medição com performance.now() e contagem de passos
   dominio/
-    produto.ts                     tipo Produto e comparador por preço
-    preco.ts                       leitura e formatação de preços em centavos
+    produto.ts                     Modelo tipado Produto e comparador de preço
+    preco.ts                       Leitura e formatação monetária (centavos em R$)
   armazenamento/
-    repositorio.ts                 persistência local com AsyncStorage
-  componentes/                     interface
-  tema.ts                          cores e espaçamentos
+    repositorio.ts                 Persistência local no aparelho com AsyncStorage
+  componentes/
+    PainelLista.tsx                Interface de cadastro e busca interativa
+    PainelComparacao.tsx           Painel com gráficos de barras e comparativo de Big-O
+    FormularioProduto.tsx          Entrada com máscara e validação
+    ItemProduto.tsx                Card do produto com botão de exclusão
+    Escolha.tsx                    Seletor de opções em abas/segmentos
+    Botao.tsx                      Botão acessível com estado de carregamento
+  tema.ts                          Cores, tipografia e espaçamentos
 ```
 
-Os algoritmos ficam em `src/algoritmos/` e o benchmark em `src/benchmark/protocolo.ts`.
-Nenhum deles usa `Array.prototype.sort`. O `sort` nativo aparece apenas fora do trecho
-cronometrado: na preparação dos cenários "ordenado" e "inverso" e no cálculo da mediana
-dos tempos.
+---
 
-## Metodologia de medição
+## Metodologia de medição e comparação
 
-Ao tocar em **Comparar**:
+Na aba **Comparação**:
 
-1. Uma única entrada é gerada e os três algoritmos recebem exatamente ela.
-2. Cada execução recebe uma cópia independente dessa entrada, feita **fora** do
-   cronômetro. As alocações internas do próprio algoritmo (o O(n) do Merge)
-   continuam dentro do tempo medido, porque fazem parte do custo dele.
-3. 1 execução de aquecimento por algoritmo é descartada.
-4. 10 execuções são medidas com `performance.now()`.
-5. A ordem dos algoritmos é alternada a cada rodada, para diluir viés de ordem.
-6. O valor comparado é a **mediana** (com 10 amostras, a média entre a 5ª e a 6ª
-   depois de ordenadas). As 10 amostras ficam guardadas no resultado para conferência.
-7. A saída é validada fora da medição: ordem crescente, mesma quantidade e
-   exatamente os mesmos produtos da entrada.
-8. Nenhum log ou atualização de tela acontece dentro do trecho cronometrado.
+1. O usuário escolhe o tamanho da entrada ($N = 1.000$, $10.000$ ou $100.000$ produtos) e o cenário da busca (Pior caso, Caso médio ou Melhor caso).
+2. Uma única base de dados de teste ordenada é gerada em memória.
+3. São descartadas 2 rodadas de aquecimento para que o JIT (V8 na web, Hermes no celular) estabilize.
+4. São coletadas 10 rodadas de medição com `performance.now()`, alternando a ordem de execução dos algoritmos para eliminar viés de cache.
+5. Cada medição executa um lote de buscas para garantir precisão temporal contra ruído de timer do sistema operacional.
+6. A interface exibe:
+   - O tempo medido (mediana das amostras).
+   - O **número exato de comparações/passos** realizados.
+   - A notação assintótica destacada com cores correspondentes ao gráfico de complexidade.
 
-O aplicativo também estima a resolução do relógio e avisa quando a diferença
-entre as medianas fica dentro dessa margem. Nesse caso a comparação não separa
-os algoritmos e o `n` precisa aumentar.
+---
 
-Os dados de teste são gerados por um gerador pseudoaleatório com semente fixa
-(`20260908`), então a mesma opção produz sempre a mesma entrada, em qualquer
-aparelho e em qualquer execução.
+## Coleta de evidências com Chrome for Developers
 
-### Limitações
+Para a apresentação do trabalho em sala de aula e inclusão nos slides:
 
-- As medidas são feitas com o aplicativo em **modo de desenvolvimento no Expo Go**.
-  Não equivalem a uma build de produção (release), que costuma ser mais rápida.
-- Cada ordenação é síncrona e ocupa a thread JavaScript. O aplicativo cede
-  execução **entre** as rodadas para a tela se atualizar, mas isso não move o
-  cálculo para outra thread. Por isso o `n` máximo é limitado a 5.000.
-- O tempo medido é o tempo do algoritmo. **Não** é o tempo de inicialização do
-  aplicativo, nem medida de CPU, memória, bateria ou FPS.
-- Os números valem para o aparelho, o cenário e o tamanho testados. Não existe
-  vencedor universal.
+1. Execute `npm run web` e abra o aplicativo no Google Chrome.
+2. Pressione `F12` para abrir o **Chrome DevTools** e selecione a aba **Performance**.
+3. Clique no botão de Gravar (círculo vermelho).
+4. Na aba **Comparação** do app, selecione $100.000$ produtos, cenário *Pior caso*, e clique em **Comparar busca**.
+5. Interrompa a gravação do DevTools.
+6. No painel de chama (**Flame Chart / Main Thread**):
+   - Observe o bloco de execução da **Busca Linear**: veja a sequência contínua de iterações do laço `for`.
+   - Em contraste, observe o tempo imperceptível da **Busca Binária**, que resolve o problema em apenas 17 saltos.
+7. Na aba **Memory**, gere um Heap Snapshot para evidenciar que ambos os algoritmos possuem memória auxiliar $O(1)$, operando sem alocação de estruturas extras.
 
-## Coleta de evidências com ferramentas de análise
-
-Separe claramente o que foi medido na web e o que foi medido no nativo.
-
-**Web (Chrome DevTools):** rode `npm run web`, abra o DevTools (F12), vá em
-**Performance**, clique em gravar, toque em *Comparar*, pare a gravação
-e observe o bloco longo de tarefa da thread principal. A aba **Memory** permite
-tirar snapshots do heap JavaScript antes e depois de gerar 5.000 produtos.
-
-**Nativo (React Native DevTools):** com o app aberto no Expo Go, pressione `j` no
-terminal do Expo para abrir o DevTools. As abas de Performance e Memory refletem o
-Hermes no aparelho. Confira quais painéis existem na versão instalada em vez de
-supor que todos os da aula estão disponíveis.
-
-Números coletados na web e no celular não devem ser misturados na mesma tabela.
-
-## Dados de teste e a lista real
-
-A lista real fica em `AsyncStorage`, sob a chave `lista-compras:produtos:v1`.
-Os dados sintéticos do benchmark **nunca** passam por ali: são criados em memória
-no momento da comparação e descartados depois. Gerar 5.000 produtos de teste não
-apaga, não altera e não mistura nada com os produtos cadastrados pelo usuário.
-
-Na aba **Comparação**, a opção *De teste* usa os dados sintéticos e a opção
-*Minha lista* usa uma cópia dos produtos reais. A origem dos dados aparece
-sempre junto do resultado.
+---
 
 ## Verificações realizadas
 
@@ -165,15 +129,5 @@ sempre junto do resultado.
 npm run typecheck   # tsc --noEmit
 ```
 
-Executados neste projeto:
-
-- `npx tsc --noEmit` sem erros.
-- `npx expo export --platform android` concluído: o bundle Metro é gerado sem erros.
-- Execução no navegador com `npm run web`: as duas abas renderizam, o cadastro e a
-  ordenação funcionam e a comparação com 1.000 produtos aleatórios produziu medianas
-  reais nas três implementações.
-
-Não verificado: a execução em celular ou emulador. Nenhum aparelho Android ou iOS
-estava disponível no ambiente onde o projeto foi montado, então o comportamento da
-interface no Expo Go e os tempos de cada algoritmo em aparelho ainda precisam ser
-conferidos pelo grupo antes da apresentação.
+- `npx tsc --noEmit`: 0 erros de tipagem TypeScript.
+- Execução na web (`npm run web`): cadastro de produtos, persistência, busca interativa e o módulo de benchmark funcionando perfeitamente em 1.000, 10.000 e 100.000 itens.

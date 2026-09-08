@@ -69,8 +69,7 @@ function Tela() {
       <View style={estilos.topo}>
         <Text style={estilos.titulo}>Lista de compras</Text>
         <Text style={estilos.subtitulo}>
-          Uma lista que se organiza do produto mais barato para o mais caro, escrita três vezes com
-          três algoritmos de ordenação diferentes.
+          Consulta e busca de produtos comparando Busca Linear O(n) e Busca Binária O(log n).
         </Text>
         <Escolha
           opcoes={[

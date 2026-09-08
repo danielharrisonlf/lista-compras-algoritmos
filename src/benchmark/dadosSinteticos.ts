@@ -1,24 +1,23 @@
-import { PRECO_MAXIMO_CENTAVOS } from "../dominio/preco";
 import type { Produto } from "../dominio/produto";
 
 export const SEMENTE_PADRAO = 20260908;
 
-export const TAMANHOS_DISPONIVEIS = [100, 1000, 5000] as const;
+export const TAMANHOS_DISPONIVEIS = [1000, 10000, 100000] as const;
 export type TamanhoEntrada = (typeof TAMANHOS_DISPONIVEIS)[number];
 
-export const CENARIOS = ["aleatorio", "ordenado", "inverso"] as const;
+export const CENARIOS = ["pior_caso", "caso_medio", "melhor_caso"] as const;
 export type Cenario = (typeof CENARIOS)[number];
 
 export const ROTULO_CENARIO: Record<Cenario, string> = {
-  aleatorio: "Aleatório",
-  ordenado: "Já ordenado",
-  inverso: "Ordem inversa",
+  pior_caso: "Pior caso (último item)",
+  caso_medio: "Caso médio (item central)",
+  melhor_caso: "Melhor caso (primeiro item)",
 };
 
 export const DESCRICAO_CENARIO: Record<Cenario, string> = {
-  aleatorio: "Preços embaralhados: o caso médio, o mais parecido com uma lista real.",
-  ordenado: "Preços já em ordem crescente: o melhor caso de Bubble e Insertion.",
-  inverso: "Preços em ordem decrescente: o pior caso de Bubble e Insertion.",
+  pior_caso: "Item na última posição: a busca linear precisa percorrer todos os N elementos.",
+  caso_medio: "Item no meio da lista: a busca linear percorre N/2 elementos; a binária resolve rapidamente.",
+  melhor_caso: "Item na primeira posição: a busca linear encontra logo na primeira verificação.",
 };
 
 const CATEGORIAS = [
@@ -38,43 +37,44 @@ const CATEGORIAS = [
   "Presunto",
 ];
 
-const PRECO_MINIMO_SINTETICO = 50;
-const PRECO_MAXIMO_SINTETICO = Math.min(19_999, PRECO_MAXIMO_CENTAVOS);
-
-function criarGeradorDeterministico(semente: number): () => number {
-  let estado = semente >>> 0;
-
-  return () => {
-    estado = (estado + 0x6d2b79f5) >>> 0;
-    let t = estado;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function gerarProdutos(
-  tamanho: number,
-  cenario: Cenario,
-  semente: number = SEMENTE_PADRAO,
-): Produto[] {
-  const sortear = criarGeradorDeterministico(semente + tamanho);
-  const faixa = PRECO_MAXIMO_SINTETICO - PRECO_MINIMO_SINTETICO;
+/**
+ * Gera uma lista de produtos ordenados crescentemente por preço para teste de busca.
+ */
+export function gerarProdutos(tamanho: number): Produto[] {
   const produtos: Produto[] = new Array(tamanho);
 
+  // Preços iniciam em R$ 1,00 (100 centavos) e crescem de 5 em 5 centavos
   for (let i = 0; i < tamanho; i += 1) {
     produtos[i] = {
-      id: `teste-${i}`,
-      nome: `${CATEGORIAS[i % CATEGORIAS.length]} ${i + 1}`,
-      precoCentavos: PRECO_MINIMO_SINTETICO + Math.floor(sortear() * (faixa + 1)),
+      id: `prod-${i}`,
+      nome: `${CATEGORIAS[i % CATEGORIAS.length]} #${i + 1}`,
+      precoCentavos: 100 + i * 5,
     };
   }
 
-  if (cenario === "ordenado") {
-    produtos.sort((a, b) => a.precoCentavos - b.precoCentavos);
-  } else if (cenario === "inverso") {
-    produtos.sort((a, b) => b.precoCentavos - a.precoCentavos);
-  }
-
   return produtos;
+}
+
+/**
+ * Determina o preço alvo a ser buscado com base no cenário escolhido.
+ */
+export function obterPrecoAlvo(produtos: Produto[], cenario: Cenario): number {
+  if (produtos.length === 0) return 100;
+
+  switch (cenario) {
+    case "melhor_caso":
+      // Primeiro item
+      return produtos[0].precoCentavos;
+
+    case "caso_medio": {
+      // Item do meio da lista
+      const meio = Math.floor(produtos.length / 2);
+      return produtos[meio].precoCentavos;
+    }
+
+    case "pior_caso":
+    default:
+      // Último item da lista
+      return produtos[produtos.length - 1].precoCentavos;
+  }
 }

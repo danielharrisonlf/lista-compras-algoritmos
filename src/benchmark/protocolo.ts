@@ -1,30 +1,34 @@
-import { ALGORITMOS, type Algoritmo, type IdAlgoritmo } from "../algoritmos";
-import { compararPorPreco, type Produto } from "../dominio/produto";
+import { ALGORITMOS, type Algoritmo, type IdAlgoritmo, type ResultadoBusca } from "../algoritmos";
+import type { Produto } from "../dominio/produto";
 
 export const REPETICOES = 10;
-export const AQUECIMENTOS = 1;
+export const AQUECIMENTOS = 2;
+// Lote de buscas por amostra para garantir precisão mensurável no performance.now()
+export const LOTE_BUSCAS = 200;
 
 export type ResultadoAlgoritmo = {
   id: IdAlgoritmo;
   nome: string;
-  amostras: number[];
+  notacaoBigO: string;
+  corGrafico: string;
+  amostrasMs: number[];
   medianaMs: number;
-  minimoMs: number;
-  maximoMs: number;
+  comparacoes: number; // Quantidade de comparações/passos efetuados
+  indiceEncontrado: number;
   saidaValida: boolean;
   melhorCaso: string;
   casoMedio: string;
   piorCaso: string;
   memoriaAuxiliar: string;
+  preRequisito: string;
 };
 
 export type ResultadoBenchmark = {
   descricaoEntrada: string;
   tamanho: number;
+  precoAlvoCentavos: number;
   repeticoes: number;
-  aquecimentos: number;
-  resolucaoRelogioMs: number;
-  proximoDaResolucao: boolean;
+  loteBuscas: number;
   resultados: ResultadoAlgoritmo[];
   assinatura: string;
 };
@@ -51,80 +55,44 @@ export function mediana(valores: number[]): number {
     : (ordenados[meio - 1] + ordenados[meio]) / 2;
 }
 
-export function medirResolucaoRelogio(): number {
-  let menor = Infinity;
-
-  for (let tentativa = 0; tentativa < 50; tentativa += 1) {
-    const inicio = agora();
-    let fim = agora();
-    let giros = 0;
-
-    while (fim === inicio && giros < 1_000_000) {
-      fim = agora();
-      giros += 1;
-    }
-
-    const delta = fim - inicio;
-    if (delta > 0 && delta < menor) menor = delta;
-  }
-
-  return Number.isFinite(menor) ? menor : 1;
-}
-
-export function saidaEstaCorreta(entrada: Produto[], saida: Produto[]): boolean {
-  if (saida.length !== entrada.length) return false;
-
-  for (let i = 1; i < saida.length; i += 1) {
-    if (saida[i - 1].precoCentavos > saida[i].precoCentavos) return false;
-  }
-
-  const contagem = new Map<string, number>();
-
-  for (const produto of entrada) {
-    contagem.set(produto.id, (contagem.get(produto.id) ?? 0) + 1);
-  }
-
-  for (const produto of saida) {
-    const restante = contagem.get(produto.id);
-    if (restante === undefined || restante === 0) return false;
-    contagem.set(produto.id, restante - 1);
-  }
-
-  return true;
-}
-
 function cederExecucao(): Promise<void> {
   return new Promise((resolver) => setTimeout(resolver, 0));
 }
 
 export async function executarBenchmark(
-  entrada: Produto[],
+  produtos: Produto[],
+  precoAlvoCentavos: number,
   descricaoEntrada: string,
   assinatura: string,
   aoProgredir?: (progresso: ProgressoBenchmark) => void,
 ): Promise<ResultadoBenchmark> {
-  const resolucaoRelogioMs = medirResolucaoRelogio();
+  // Garantir que os produtos estejam ordenados por preço para o teste
+  const listaOrdenada = [...produtos].sort((a, b) => a.precoCentavos - b.precoCentavos);
+
   const amostras = new Map<IdAlgoritmo, number[]>();
-  const validade = new Map<IdAlgoritmo, boolean>();
+  const comparacoesMap = new Map<IdAlgoritmo, number>();
+  const indicesMap = new Map<IdAlgoritmo, number>();
 
   for (const algoritmo of ALGORITMOS) {
     amostras.set(algoritmo.id, []);
-    validade.set(algoritmo.id, true);
   }
 
+  // 1. Aquecimento do JIT/V8/Hermes
   for (const algoritmo of ALGORITMOS) {
     for (let i = 0; i < AQUECIMENTOS; i += 1) {
-      algoritmo.ordenar(entrada.slice(), compararPorPreco);
+      for (let j = 0; j < LOTE_BUSCAS; j += 1) {
+        algoritmo.buscar(listaOrdenada, precoAlvoCentavos);
+      }
     }
     await cederExecucao();
   }
 
+  // 2. Coleta de amostras medidas
   for (let rodada = 0; rodada < REPETICOES; rodada += 1) {
-    const ordemDaRodada: Algoritmo[] = ALGORITMOS.map(
-      (_, indice) => ALGORITMOS[(indice + rodada) % ALGORITMOS.length],
-    );
+    // Alterna a ordem de execução para mitigar viés de cache
+    const ordem = ALGORITMOS.slice().reverse();
 
-    for (const algoritmo of ordemDaRodada) {
+    for (const algoritmo of ordem) {
       aoProgredir?.({
         rodada: rodada + 1,
         totalRodadas: REPETICOES,
@@ -132,19 +100,28 @@ export async function executarBenchmark(
       });
       await cederExecucao();
 
-      const copia = entrada.slice();
-
       const inicio = agora();
-      const saida = algoritmo.ordenar(copia, compararPorPreco);
+      let resultadoBusca: ResultadoBusca | null = null;
+      for (let k = 0; k < LOTE_BUSCAS; k += 1) {
+        resultadoBusca = algoritmo.buscar(listaOrdenada, precoAlvoCentavos);
+      }
       const fim = agora();
 
-      amostras.get(algoritmo.id)!.push(fim - inicio);
+      // Tempo médio por busca individual em milissegundos
+      const tempoIndividual = (fim - inicio) / LOTE_BUSCAS;
+      amostras.get(algoritmo.id)!.push(tempoIndividual);
 
-      if (!saidaEstaCorreta(entrada, saida)) {
-        validade.set(algoritmo.id, false);
+      if (resultadoBusca) {
+        comparacoesMap.set(algoritmo.id, resultadoBusca.comparacoes);
+        indicesMap.set(algoritmo.id, resultadoBusca.indice);
       }
     }
   }
+
+  // Verificar se ambos os algoritmos encontraram exatamente o mesmo índice
+  const indiceLinear = indicesMap.get("linear") ?? -1;
+  const indiceBinario = indicesMap.get("binaria") ?? -1;
+  const indicesConcordam = indiceLinear === indiceBinario;
 
   const resultados: ResultadoAlgoritmo[] = ALGORITMOS.map((algoritmo) => {
     const tempos = amostras.get(algoritmo.id)!;
@@ -152,28 +129,27 @@ export async function executarBenchmark(
     return {
       id: algoritmo.id,
       nome: algoritmo.nome,
-      amostras: tempos,
+      notacaoBigO: algoritmo.notacaoBigO,
+      corGrafico: algoritmo.corGrafico,
+      amostrasMs: tempos,
       medianaMs: mediana(tempos),
-      minimoMs: Math.min(...tempos),
-      maximoMs: Math.max(...tempos),
-      saidaValida: validade.get(algoritmo.id)!,
+      comparacoes: comparacoesMap.get(algoritmo.id) ?? 0,
+      indiceEncontrado: indicesMap.get(algoritmo.id) ?? -1,
+      saidaValida: indicesConcordam,
       melhorCaso: algoritmo.melhorCaso,
       casoMedio: algoritmo.casoMedio,
       piorCaso: algoritmo.piorCaso,
       memoriaAuxiliar: algoritmo.memoriaAuxiliar,
+      preRequisito: algoritmo.preRequisito,
     };
   });
 
-  const medianas = resultados.map((r) => r.medianaMs);
-  const diferenca = Math.max(...medianas) - Math.min(...medianas);
-
   return {
     descricaoEntrada,
-    tamanho: entrada.length,
+    tamanho: listaOrdenada.length,
+    precoAlvoCentavos,
     repeticoes: REPETICOES,
-    aquecimentos: AQUECIMENTOS,
-    resolucaoRelogioMs,
-    proximoDaResolucao: diferenca < resolucaoRelogioMs * 3,
+    loteBuscas: LOTE_BUSCAS,
     resultados,
     assinatura,
   };

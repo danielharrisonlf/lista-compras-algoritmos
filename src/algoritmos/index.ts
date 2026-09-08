@@ -1,58 +1,55 @@
-import type { Comparador } from "../dominio/produto";
-import { bubbleSort } from "./bubbleSort";
-import { insertionSort } from "./insertionSort";
-import { mergeSort } from "./mergeSort";
+import type { Produto } from "../dominio/produto";
+import { buscaLinear, type ResultadoBusca } from "./buscaLinear";
+import { buscaBinaria } from "./buscaBinaria";
 
-export { bubbleSort, insertionSort, mergeSort };
+export { buscaLinear, buscaBinaria, type ResultadoBusca };
 
-export type IdAlgoritmo = "bubble" | "insertion" | "merge";
+export type IdAlgoritmo = "linear" | "binaria";
 
-export type FuncaoOrdenacao = <T>(itens: T[], comparar: Comparador<T>) => T[];
+export type FuncaoBusca = (itens: Produto[], precoAlvoCentavos: number) => ResultadoBusca;
 
 export type Algoritmo = {
   id: IdAlgoritmo;
   nome: string;
-  ordenar: FuncaoOrdenacao;
+  buscar: FuncaoBusca;
+  notacaoBigO: string;
+  corGrafico: string; // Amarelo para O(n), Verde para O(log n)
   melhorCaso: string;
   casoMedio: string;
   piorCaso: string;
   memoriaAuxiliar: string;
+  preRequisito: string;
   resumo: string;
 };
 
 export const ALGORITMOS: Algoritmo[] = [
   {
-    id: "bubble",
-    nome: "Bubble Sort",
-    ordenar: bubbleSort,
-    melhorCaso: "O(n)",
-    casoMedio: "O(n²)",
-    piorCaso: "O(n²)",
+    id: "linear",
+    nome: "Busca Linear",
+    buscar: buscaLinear,
+    notacaoBigO: "O(n)",
+    corGrafico: "#EAB308", // Amarelo (faixa O(n) do Big-O Cheat Sheet)
+    melhorCaso: "O(1)",
+    casoMedio: "O(n)",
+    piorCaso: "O(n)",
     memoriaAuxiliar: "O(1)",
+    preRequisito: "Nenhum (aceita lista em qualquer ordem)",
     resumo:
-      "Troca vizinhos fora de ordem a cada passagem. Com parada antecipada, uma lista já ordenada custa uma única passagem.",
+      "Percorre a lista elemento por elemento a partir do início. Em 100.000 itens, pode precisar de até 100.000 comparações.",
   },
   {
-    id: "insertion",
-    nome: "Insertion Sort",
-    ordenar: insertionSort,
-    melhorCaso: "O(n)",
-    casoMedio: "O(n²)",
-    piorCaso: "O(n²)",
+    id: "binaria",
+    nome: "Busca Binária",
+    buscar: buscaBinaria,
+    notacaoBigO: "O(log n)",
+    corGrafico: "#22C55E", // Verde (faixa O(log n) do Big-O Cheat Sheet)
+    melhorCaso: "O(1)",
+    casoMedio: "O(log n)",
+    piorCaso: "O(log n)",
     memoriaAuxiliar: "O(1)",
+    preRequisito: "A lista precisa estar ordenada por preço",
     resumo:
-      "Mantém um trecho ordenado no começo e insere cada novo elemento no lugar certo, deslocando os maiores para a direita.",
-  },
-  {
-    id: "merge",
-    nome: "Merge Sort",
-    ordenar: mergeSort,
-    melhorCaso: "O(n log n)",
-    casoMedio: "O(n log n)",
-    piorCaso: "O(n log n)",
-    memoriaAuxiliar: "O(n)",
-    resumo:
-      "Divide ao meio até sobrar um elemento e depois intercala as metades ordenadas. Gasta memória extra para ganhar tempo.",
+      "Divide a lista pela metade a cada passo. Em 100.000 itens, encontra qualquer elemento em no máximo 17 comparações.",
   },
 ];
 
