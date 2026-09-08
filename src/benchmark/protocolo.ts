@@ -3,19 +3,21 @@ import type { Produto } from "../dominio/produto";
 
 export const REPETICOES = 10;
 export const AQUECIMENTOS = 2;
-// Lote de buscas por amostra para garantir precisão mensurável no performance.now()
-export const LOTE_BUSCAS = 200;
+
+export function loteDeBuscas(tamanho: number): number {
+  if (tamanho <= 1_000) return 200;
+  if (tamanho <= 10_000) return 50;
+  return 10;
+}
 
 export type ResultadoAlgoritmo = {
   id: IdAlgoritmo;
   nome: string;
   notacaoBigO: string;
-  corGrafico: string;
   amostrasMs: number[];
   medianaMs: number;
-  comparacoes: number; // Quantidade de comparações/passos efetuados
+  comparacoes: number;
   indiceEncontrado: number;
-  saidaValida: boolean;
   melhorCaso: string;
   casoMedio: string;
   piorCaso: string;
@@ -29,6 +31,7 @@ export type ResultadoBenchmark = {
   precoAlvoCentavos: number;
   repeticoes: number;
   loteBuscas: number;
+  resultadosConcordam: boolean;
   resultados: ResultadoAlgoritmo[];
   assinatura: string;
 };
@@ -60,39 +63,37 @@ function cederExecucao(): Promise<void> {
 }
 
 export async function executarBenchmark(
-  produtos: Produto[],
+  listaOrdenada: Produto[],
   precoAlvoCentavos: number,
   descricaoEntrada: string,
   assinatura: string,
   aoProgredir?: (progresso: ProgressoBenchmark) => void,
 ): Promise<ResultadoBenchmark> {
-  // Garantir que os produtos estejam ordenados por preço para o teste
-  const listaOrdenada = [...produtos].sort((a, b) => a.precoCentavos - b.precoCentavos);
+  const loteBuscas = loteDeBuscas(listaOrdenada.length);
 
   const amostras = new Map<IdAlgoritmo, number[]>();
-  const comparacoesMap = new Map<IdAlgoritmo, number>();
-  const indicesMap = new Map<IdAlgoritmo, number>();
+  const comparacoesPorAlgoritmo = new Map<IdAlgoritmo, number>();
+  const indicePorAlgoritmo = new Map<IdAlgoritmo, number>();
 
   for (const algoritmo of ALGORITMOS) {
     amostras.set(algoritmo.id, []);
   }
 
-  // 1. Aquecimento do JIT/V8/Hermes
   for (const algoritmo of ALGORITMOS) {
     for (let i = 0; i < AQUECIMENTOS; i += 1) {
-      for (let j = 0; j < LOTE_BUSCAS; j += 1) {
+      for (let j = 0; j < loteBuscas; j += 1) {
         algoritmo.buscar(listaOrdenada, precoAlvoCentavos);
       }
     }
     await cederExecucao();
   }
 
-  // 2. Coleta de amostras medidas
   for (let rodada = 0; rodada < REPETICOES; rodada += 1) {
-    // Alterna a ordem de execução para mitigar viés de cache
-    const ordem = ALGORITMOS.slice().reverse();
+    const ordemDaRodada: Algoritmo[] = ALGORITMOS.map(
+      (_, indice) => ALGORITMOS[(indice + rodada) % ALGORITMOS.length],
+    );
 
-    for (const algoritmo of ordem) {
+    for (const algoritmo of ordemDaRodada) {
       aoProgredir?.({
         rodada: rodada + 1,
         totalRodadas: REPETICOES,
@@ -101,27 +102,26 @@ export async function executarBenchmark(
       await cederExecucao();
 
       const inicio = agora();
-      let resultadoBusca: ResultadoBusca | null = null;
-      for (let k = 0; k < LOTE_BUSCAS; k += 1) {
-        resultadoBusca = algoritmo.buscar(listaOrdenada, precoAlvoCentavos);
+      let ultimo: ResultadoBusca | null = null;
+      for (let k = 0; k < loteBuscas; k += 1) {
+        ultimo = algoritmo.buscar(listaOrdenada, precoAlvoCentavos);
       }
       const fim = agora();
 
-      // Tempo médio por busca individual em milissegundos
-      const tempoIndividual = (fim - inicio) / LOTE_BUSCAS;
-      amostras.get(algoritmo.id)!.push(tempoIndividual);
+      amostras.get(algoritmo.id)!.push((fim - inicio) / loteBuscas);
 
-      if (resultadoBusca) {
-        comparacoesMap.set(algoritmo.id, resultadoBusca.comparacoes);
-        indicesMap.set(algoritmo.id, resultadoBusca.indice);
+      if (ultimo) {
+        comparacoesPorAlgoritmo.set(algoritmo.id, ultimo.comparacoes);
+        indicePorAlgoritmo.set(algoritmo.id, ultimo.indice);
       }
     }
   }
 
-  // Verificar se ambos os algoritmos encontraram exatamente o mesmo índice
-  const indiceLinear = indicesMap.get("linear") ?? -1;
-  const indiceBinario = indicesMap.get("binaria") ?? -1;
-  const indicesConcordam = indiceLinear === indiceBinario;
+  const precosEncontrados = ALGORITMOS.map((a) => {
+    const indice = indicePorAlgoritmo.get(a.id) ?? -1;
+    return indice >= 0 ? listaOrdenada[indice].precoCentavos : null;
+  });
+  const resultadosConcordam = precosEncontrados.every((p) => p === precosEncontrados[0]);
 
   const resultados: ResultadoAlgoritmo[] = ALGORITMOS.map((algoritmo) => {
     const tempos = amostras.get(algoritmo.id)!;
@@ -130,12 +130,10 @@ export async function executarBenchmark(
       id: algoritmo.id,
       nome: algoritmo.nome,
       notacaoBigO: algoritmo.notacaoBigO,
-      corGrafico: algoritmo.corGrafico,
       amostrasMs: tempos,
       medianaMs: mediana(tempos),
-      comparacoes: comparacoesMap.get(algoritmo.id) ?? 0,
-      indiceEncontrado: indicesMap.get(algoritmo.id) ?? -1,
-      saidaValida: indicesConcordam,
+      comparacoes: comparacoesPorAlgoritmo.get(algoritmo.id) ?? 0,
+      indiceEncontrado: indicePorAlgoritmo.get(algoritmo.id) ?? -1,
       melhorCaso: algoritmo.melhorCaso,
       casoMedio: algoritmo.casoMedio,
       piorCaso: algoritmo.piorCaso,
@@ -149,7 +147,8 @@ export async function executarBenchmark(
     tamanho: listaOrdenada.length,
     precoAlvoCentavos,
     repeticoes: REPETICOES,
-    loteBuscas: LOTE_BUSCAS,
+    loteBuscas,
+    resultadosConcordam,
     resultados,
     assinatura,
   };

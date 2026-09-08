@@ -3,7 +3,6 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-nat
 import {
   CENARIOS,
   ROTULO_CENARIO,
-  SEMENTE_PADRAO,
   TAMANHOS_DISPONIVEIS,
   gerarProdutos,
   obterPrecoAlvo,
@@ -17,7 +16,7 @@ import {
   type ResultadoBenchmark,
 } from "../benchmark/protocolo";
 import { formatarPreco } from "../dominio/preco";
-import type { Produto } from "../dominio/produto";
+import { compararPorPreco, type Produto } from "../dominio/produto";
 import { cores, espaco } from "../tema";
 import { Botao } from "./Botao";
 import { Escolha } from "./Escolha";
@@ -31,7 +30,7 @@ const MINIMO_PARA_COMPARAR = 2;
 export function PainelComparacao({ produtos, versaoLista }: Props) {
   const [fonte, setFonte] = useState<Fonte>("sinteticos");
   const [tamanho, setTamanho] = useState<TamanhoEntrada>(100000);
-  const [cenario, setCenario] = useState<Cenario>("pior_caso");
+  const [cenario, setCenario] = useState<Cenario>("pior");
   const [executando, setExecutando] = useState(false);
   const [progresso, setProgresso] = useState<ProgressoBenchmark | null>(null);
   const [resultado, setResultado] = useState<ResultadoBenchmark | null>(null);
@@ -39,29 +38,30 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
   const assinatura =
     fonte === "lista"
       ? `lista:v${versaoLista}:n${produtos.length}:${cenario}`
-      : `sinteticos:n${tamanho}:${cenario}:s${SEMENTE_PADRAO}`;
+      : `sinteticos:n${tamanho}:${cenario}`;
 
-  const semDadosSuficientes = fonte === "lista" && produtos.length < MINIMO_PARA_COMPARAR;
+  const semDados = fonte === "lista" && produtos.length < MINIMO_PARA_COMPARAR;
   const desatualizado = resultado !== null && resultado.assinatura !== assinatura;
 
   const descricao =
     fonte === "lista"
-      ? `Sua lista (${produtos.length} produtos), ${ROTULO_CENARIO[cenario].toLowerCase()}`
+      ? `Sua lista, ${produtos.length} produtos, ${ROTULO_CENARIO[cenario].toLowerCase()}`
       : `${formatarNumero(tamanho)} produtos, ${ROTULO_CENARIO[cenario].toLowerCase()}`;
 
   async function comparar() {
-    if (executando || semDadosSuficientes) return;
+    if (executando || semDados) return;
 
     setExecutando(true);
     setProgresso(null);
     setResultado(null);
 
-    const baseProdutos = fonte === "lista" ? produtos.slice() : gerarProdutos(tamanho);
-    const precoAlvo = obterPrecoAlvo(baseProdutos, cenario);
+    const listaOrdenada =
+      fonte === "lista" ? produtos.slice().sort(compararPorPreco) : gerarProdutos(tamanho);
+    const precoAlvo = obterPrecoAlvo(listaOrdenada, cenario);
 
     try {
       setResultado(
-        await executarBenchmark(baseProdutos, precoAlvo, descricao, assinatura, setProgresso),
+        await executarBenchmark(listaOrdenada, precoAlvo, descricao, assinatura, setProgresso),
       );
     } finally {
       setExecutando(false);
@@ -73,10 +73,6 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
     ? Math.max(...resultado.resultados.map((r) => r.comparacoes), 1)
     : 1;
 
-  const maisRapido = resultado
-    ? resultado.resultados.reduce((a, b) => (b.medianaMs < a.medianaMs ? b : a))
-    : null;
-
   return (
     <ScrollView
       contentContainerStyle={estilos.conteudo}
@@ -84,17 +80,15 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <Text style={estilos.abertura}>
-        Comparação prática entre <Text style={estilos.destaque}>Busca Linear</Text> e{" "}
-        <Text style={estilos.destaque}>Busca Binária</Text>. Veja o impacto do crescimento de N
-        sobre as classes assintóticas <Text style={estilos.tagLinear}>O(n)</Text> e{" "}
-        <Text style={estilos.tagBinaria}>O(log n)</Text>.
+        Os dois algoritmos procuram o mesmo preço na mesma lista. A diferença entre O(n) e
+        O(log n) aparece na quantidade de passos.
       </Text>
 
       <View style={estilos.bloco}>
-        <Text style={estilos.rotulo}>Origem dos dados</Text>
+        <Text style={estilos.rotulo}>Dados</Text>
         <Escolha
           opcoes={[
-            { valor: "sinteticos", rotulo: "Dados de teste" },
+            { valor: "sinteticos", rotulo: "De teste" },
             { valor: "lista", rotulo: "Minha lista" },
           ]}
           selecionado={fonte}
@@ -105,7 +99,7 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
 
       {fonte === "sinteticos" ? (
         <View style={estilos.bloco}>
-          <Text style={estilos.rotulo}>Quantidade de produtos (N)</Text>
+          <Text style={estilos.rotulo}>Quantidade de produtos</Text>
           <Escolha
             opcoes={TAMANHOS_DISPONIVEIS.map((t) => ({
               valor: String(t),
@@ -119,7 +113,7 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
       ) : null}
 
       <View style={estilos.bloco}>
-        <Text style={estilos.rotulo}>Posição do item procurado</Text>
+        <Text style={estilos.rotulo}>Onde está o produto procurado</Text>
         <Escolha
           opcoes={CENARIOS.map((c) => ({ valor: c, rotulo: ROTULO_CENARIO[c] }))}
           selecionado={cenario}
@@ -128,14 +122,14 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
         />
       </View>
 
-      {semDadosSuficientes ? (
+      {semDados ? (
         <Text style={estilos.aviso}>Cadastre pelo menos dois produtos ou use dados de teste.</Text>
       ) : null}
 
       <Botao
-        titulo="Comparar busca"
+        titulo="Comparar"
         aoPressionar={comparar}
-        desabilitado={semDadosSuficientes}
+        desabilitado={semDados}
         carregando={executando}
       />
 
@@ -144,8 +138,8 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
           <ActivityIndicator color={cores.tinta} />
           <Text style={estilos.progressoTexto}>
             {progresso
-              ? `Executando ${progresso.algoritmo} (amostra ${progresso.rodada}/${progresso.totalRodadas})...`
-              : "Aquecendo CPU..."}
+              ? `Medição ${progresso.rodada} de ${progresso.totalRodadas}, ${progresso.algoritmo}`
+              : "Aquecendo"}
           </Text>
         </View>
       ) : null}
@@ -154,29 +148,29 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
         <View style={estilos.resultado}>
           <Text style={estilos.resultadoTitulo}>{resultado.descricaoEntrada}</Text>
           <Text style={estilos.meta}>
-            Preço buscado: {formatarPreco(resultado.precoAlvoCentavos)} | {resultado.loteBuscas} buscas
-            por medição (mediana)
+            Preço procurado {formatarPreco(resultado.precoAlvoCentavos)}, {resultado.repeticoes}{" "}
+            medições de {resultado.loteBuscas} buscas cada, valor exibido: mediana
           </Text>
 
           {desatualizado ? (
             <Text style={estilos.aviso}>
-              Você alterou as opções após a medição. Clique em comparar novamente.
+              Você mudou as opções depois desta medição. Compare de novo.
+            </Text>
+          ) : null}
+
+          {!resultado.resultadosConcordam ? (
+            <Text style={estilos.aviso}>
+              Os dois algoritmos chegaram a preços diferentes. Confira a implementação.
             </Text>
           ) : null}
 
           {resultado.resultados.map((r) => (
-            <CardResultado
-              key={r.id}
-              resultado={r}
-              proporcaoComparacoes={r.comparacoes / maiorComparacoes}
-              vencedor={maisRapido?.id === r.id}
-            />
+            <Linha key={r.id} resultado={r} proporcao={r.comparacoes / maiorComparacoes} />
           ))}
 
           <Text style={estilos.rodape}>
-            Medido no dispositivo via performance.now(). No caso de 100.000 itens, a Busca Linear
-            avalia item por item (100.000 passos), enquanto a Busca Binária divide o espaço ao meio
-            em ~17 passos.
+            Medido neste aparelho, no Expo Go em modo de desenvolvimento. A busca binária só é
+            possível porque a lista está ordenada.
           </Text>
         </View>
       ) : null}
@@ -184,65 +178,32 @@ export function PainelComparacao({ produtos, versaoLista }: Props) {
   );
 }
 
-function CardResultado({
-  resultado,
-  proporcaoComparacoes,
-  vencedor,
-}: {
-  resultado: ResultadoAlgoritmo;
-  proporcaoComparacoes: number;
-  vencedor: boolean;
-}) {
+function Linha({ resultado, proporcao }: { resultado: ResultadoAlgoritmo; proporcao: number }) {
+  const cor = resultado.id === "binaria" ? cores.preco : cores.etiqueta;
+  const corTexto = resultado.id === "binaria" ? cores.preco : cores.alerta;
+
   return (
-    <View style={estilos.card}>
-      <View style={estilos.cardTopo}>
-        <View style={estilos.linhaTitulo}>
-          <Text style={estilos.cardNome}>{resultado.nome}</Text>
-          <View
-            style={[
-              estilos.badgeBigO,
-              { backgroundColor: resultado.id === "binaria" ? "#DCFCE7" : "#FEF9C3" },
-            ]}
-          >
-            <Text
-              style={[
-                estilos.badgeBigOTexto,
-                { color: resultado.id === "binaria" ? "#166534" : "#854D0E" },
-              ]}
-            >
-              {resultado.notacaoBigO}
-            </Text>
-          </View>
-        </View>
-        <Text style={estilos.cardTempo}>{formatarTempo(resultado.medianaMs)}</Text>
-      </View>
-
-      <View style={estilos.blocoComparacoes}>
-        <Text style={estilos.comparacoesTexto}>
-          Comparações realizadas:{" "}
-          <Text style={estilos.comparacoesDestaque}>
-            {formatarNumero(resultado.comparacoes)} passos
-          </Text>
+    <View style={estilos.linha}>
+      <View style={estilos.linhaTopo}>
+        <Text style={estilos.linhaNome}>
+          {resultado.nome}{" "}
+          <Text style={[estilos.notacao, { color: corTexto }]}>{resultado.notacaoBigO}</Text>
         </Text>
-        <View style={estilos.barraTrilho}>
-          <View
-            style={[
-              estilos.barraPreenchida,
-              {
-                width: `${Math.max(proporcaoComparacoes * 100, 2)}%`,
-                backgroundColor: resultado.id === "binaria" ? "#22C55E" : "#EAB308",
-              },
-            ]}
-          />
-        </View>
+        <Text style={estilos.passos}>{formatarNumero(resultado.comparacoes)} passos</Text>
       </View>
 
-      <Text style={estilos.cardMeta}>
-        Complexidade: {resultado.casoMedio} (médio), {resultado.piorCaso} (pior) | Memória:{" "}
-        {resultado.memoriaAuxiliar}
-      </Text>
-      <Text style={estilos.cardPreRequisito}>
-        Requisito: {resultado.preRequisito}
+      <View style={estilos.trilho}>
+        <View
+          style={[
+            estilos.preenchida,
+            { width: `${Math.max(proporcao * 100, 1.5)}%`, backgroundColor: cor },
+          ]}
+        />
+      </View>
+
+      <Text style={estilos.linhaMeta}>
+        {formatarTempo(resultado.medianaMs)} por busca, memória {resultado.memoriaAuxiliar},{" "}
+        {resultado.preRequisito}
       </Text>
     </View>
   );
@@ -254,13 +215,9 @@ function formatarNumero(valor: number): string {
 
 function formatarTempo(ms: number): string {
   if (!Number.isFinite(ms)) return "—";
-  if (ms < 0.001) {
-    return `${(ms * 1_000_000).toFixed(0)} ns`;
-  }
-  if (ms < 1) {
-    return `${(ms * 1000).toFixed(1)} µs`;
-  }
-  return `${ms.toFixed(3)} ms`;
+  if (ms < 0.001) return `${(ms * 1_000_000).toFixed(0)} ns`;
+  if (ms < 1) return `${(ms * 1000).toFixed(1)} µs`;
+  return `${ms.toFixed(2)} ms`;
 }
 
 const estilos = StyleSheet.create({
@@ -270,10 +227,7 @@ const estilos = StyleSheet.create({
     paddingBottom: espaco.xxl,
     gap: espaco.xl,
   },
-  abertura: { fontSize: 15, lineHeight: 22, color: cores.tinta },
-  destaque: { fontWeight: "700" },
-  tagLinear: { color: "#854D0E", fontWeight: "700" },
-  tagBinaria: { color: "#166534", fontWeight: "700" },
+  abertura: { fontSize: 16, lineHeight: 24, color: cores.tinta },
   bloco: { gap: espaco.xs },
   rotulo: { fontSize: 13, color: cores.suave },
   aviso: { fontSize: 13, lineHeight: 19, color: cores.alerta },
@@ -282,39 +236,23 @@ const estilos = StyleSheet.create({
   resultado: {
     gap: espaco.lg,
     borderTopWidth: 1,
-    borderTopColor: cores.linha,
+    borderTopColor: cores.tinta,
     paddingTop: espaco.lg,
   },
   resultadoTitulo: { fontSize: 17, fontWeight: "700", color: cores.tinta },
-  meta: { fontSize: 13, color: cores.suave, marginTop: -espaco.md },
-  card: {
-    backgroundColor: cores.superficie,
-    borderRadius: 8,
-    padding: espaco.lg,
-    gap: espaco.sm,
-    borderWidth: 1,
-    borderColor: cores.linha,
+  meta: { fontSize: 13, lineHeight: 19, color: cores.suave, marginTop: -espaco.md },
+  linha: { gap: espaco.xs },
+  linhaTopo: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  linhaNome: { fontSize: 16, color: cores.tinta },
+  notacao: { fontSize: 14, fontWeight: "700" },
+  passos: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: cores.tinta,
+    fontVariant: ["tabular-nums"],
   },
-  cardTopo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  linhaTitulo: { flexDirection: "row", alignItems: "center", gap: espaco.sm },
-  cardNome: { fontSize: 16, fontWeight: "700", color: cores.tinta },
-  badgeBigO: {
-    paddingHorizontal: espaco.sm,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeBigOTexto: { fontSize: 12, fontWeight: "700" },
-  cardTempo: { fontSize: 18, fontWeight: "700", color: cores.tinta, fontVariant: ["tabular-nums"] },
-  blocoComparacoes: { gap: 4, marginVertical: espaco.xs },
-  comparacoesTexto: { fontSize: 13, color: cores.tinta },
-  comparacoesDestaque: { fontWeight: "700" },
-  barraTrilho: { height: 8, backgroundColor: cores.linha, borderRadius: 4, overflow: "hidden" },
-  barraPreenchida: { height: 8, borderRadius: 4 },
-  cardMeta: { fontSize: 12, color: cores.suave },
-  cardPreRequisito: { fontSize: 11, color: cores.suave, fontStyle: "italic" },
+  trilho: { height: 10, backgroundColor: cores.superficie },
+  preenchida: { height: 10 },
+  linhaMeta: { fontSize: 12, color: cores.suave },
   rodape: { fontSize: 12, lineHeight: 18, color: cores.suave },
 });

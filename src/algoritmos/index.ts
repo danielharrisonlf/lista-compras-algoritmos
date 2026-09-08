@@ -13,7 +13,6 @@ export type Algoritmo = {
   nome: string;
   buscar: FuncaoBusca;
   notacaoBigO: string;
-  corGrafico: string; // Amarelo para O(n), Verde para O(log n)
   melhorCaso: string;
   casoMedio: string;
   piorCaso: string;
@@ -28,28 +27,24 @@ export const ALGORITMOS: Algoritmo[] = [
     nome: "Busca Linear",
     buscar: buscaLinear,
     notacaoBigO: "O(n)",
-    corGrafico: "#EAB308", // Amarelo (faixa O(n) do Big-O Cheat Sheet)
     melhorCaso: "O(1)",
     casoMedio: "O(n)",
     piorCaso: "O(n)",
     memoriaAuxiliar: "O(1)",
-    preRequisito: "Nenhum (aceita lista em qualquer ordem)",
-    resumo:
-      "Percorre a lista elemento por elemento a partir do início. Em 100.000 itens, pode precisar de até 100.000 comparações.",
+    preRequisito: "aceita a lista em qualquer ordem",
+    resumo: "Percorre a lista item por item, do começo ao fim.",
   },
   {
     id: "binaria",
     nome: "Busca Binária",
     buscar: buscaBinaria,
     notacaoBigO: "O(log n)",
-    corGrafico: "#22C55E", // Verde (faixa O(log n) do Big-O Cheat Sheet)
     melhorCaso: "O(1)",
     casoMedio: "O(log n)",
     piorCaso: "O(log n)",
     memoriaAuxiliar: "O(1)",
-    preRequisito: "A lista precisa estar ordenada por preço",
-    resumo:
-      "Divide a lista pela metade a cada passo. Em 100.000 itens, encontra qualquer elemento em no máximo 17 comparações.",
+    preRequisito: "exige a lista ordenada por preço",
+    resumo: "Corta o espaço de busca ao meio a cada passo.",
   },
 ];
 

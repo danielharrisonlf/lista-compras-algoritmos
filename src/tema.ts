@@ -6,7 +6,6 @@ export const cores = {
   linha: "#D3D8D2",
   preco: "#1E6B4F",
   etiqueta: "#F0C33C",
-  etiquetaFraca: "#FBEEC4",
   alerta: "#8A4B12",
   erro: "#A32B22",
   erroFraco: "#F7E4E2",
