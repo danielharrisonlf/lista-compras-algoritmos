@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PRECO_MAXIMO_CENTAVOS } from "../dominio/preco";
-import type { Produto } from "../dominio/produto";
+import { PRODUTOS_MOCK, type Produto } from "../dominio/produto";
 
 const CHAVE = "lista-compras:produtos:v1";
 
@@ -22,14 +22,26 @@ function ehProdutoValido(valor: unknown): valor is Produto {
 
 export async function carregarProdutos(): Promise<Produto[]> {
   const bruto = await AsyncStorage.getItem(CHAVE);
-  if (!bruto) return [];
+  if (!bruto) {
+    await salvarProdutos(PRODUTOS_MOCK);
+    return PRODUTOS_MOCK;
+  }
 
   try {
     const analisado: unknown = JSON.parse(bruto);
-    if (!Array.isArray(analisado)) return [];
-    return analisado.filter(ehProdutoValido);
+    if (!Array.isArray(analisado) || analisado.length === 0) {
+      await salvarProdutos(PRODUTOS_MOCK);
+      return PRODUTOS_MOCK;
+    }
+    const validos = analisado.filter(ehProdutoValido);
+    if (validos.length === 0) {
+      await salvarProdutos(PRODUTOS_MOCK);
+      return PRODUTOS_MOCK;
+    }
+    return validos;
   } catch {
-    return [];
+    await salvarProdutos(PRODUTOS_MOCK);
+    return PRODUTOS_MOCK;
   }
 }
 

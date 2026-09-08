@@ -6,7 +6,7 @@ import { PainelComparacao } from "./src/componentes/PainelComparacao";
 import { PainelLista } from "./src/componentes/PainelLista";
 import { Escolha } from "./src/componentes/Escolha";
 import { carregarProdutos, salvarProdutos } from "./src/armazenamento/repositorio";
-import { novoId, type Produto } from "./src/dominio/produto";
+import { novoId, PRODUTOS_MOCK, type Produto } from "./src/dominio/produto";
 import { cores, espaco } from "./src/tema";
 
 type Aba = "lista" | "comparar";
@@ -23,7 +23,7 @@ export default function App() {
 function Tela() {
   const insets = useSafeAreaInsets();
   const [aba, setAba] = useState<Aba>("lista");
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_MOCK);
   const [carregado, setCarregado] = useState(false);
   const [versaoLista, setVersaoLista] = useState(0);
 

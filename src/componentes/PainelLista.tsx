@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { ALGORITMOS, algoritmoPorId, type IdAlgoritmo } from "../algoritmos";
 import { analisarPreco, formatarPreco } from "../dominio/preco";
-import { compararPorPreco, type Produto } from "../dominio/produto";
+import { compararPorPreco, PRODUTOS_MOCK, type Produto } from "../dominio/produto";
 import { cores, espaco } from "../tema";
 import { Botao } from "./Botao";
 import { Escolha } from "./Escolha";
@@ -180,9 +180,16 @@ export function PainelLista({ produtos, aoAdicionar, aoRemover, aoOrdenar }: Pro
         </View>
       }
       ListEmptyComponent={
-        <Text style={estilos.vazio}>
-          Cadastre produtos para procurar por preço com busca linear e binária.
-        </Text>
+        <View style={estilos.vazioBloco}>
+          <Text style={estilos.vazio}>
+            A lista está vazia. Cadastre novos produtos ou carregue os itens de exemplo.
+          </Text>
+          <Botao
+            titulo="Restaurar 10 itens de exemplo"
+            aoPressionar={() => aoOrdenar(PRODUTOS_MOCK)}
+            quieto
+          />
+        </View>
       }
     />
   );
@@ -224,5 +231,6 @@ const estilos = StyleSheet.create({
     color: cores.tinta,
     fontVariant: ["tabular-nums"],
   },
-  vazio: { fontSize: 15, lineHeight: 22, color: cores.suave, paddingTop: espaco.lg },
+  vazioBloco: { gap: espaco.md, paddingTop: espaco.lg, alignItems: "flex-start" },
+  vazio: { fontSize: 15, lineHeight: 22, color: cores.suave },
 });
