@@ -17,8 +17,8 @@ Referente às implementações deste repositório, com `n` = quantidade de produ
 
 | Algoritmo | Notação Big-O (Caso Médio / Pior) | Faixa no Gráfico | Melhor caso | Caso médio | Pior caso | Memória auxiliar | Pré-requisito |
 |---|---|---|---|---|---|---|---|
-| **Busca Linear** | **$O(n)$** | 🟡 Amarelo (Linear) | $O(1)$ | $O(n)$ | $O(n)$ | $O(1)$ | Nenhum (funciona em lista desordenada) |
-| **Busca Binária** | **$O(\log n)$** | 🟢 Verde (Sublinear) | $O(1)$ | $O(\log n)$ | $O(\log n)$ | $O(1)$ | A lista precisa estar previamente ordenada |
+| **Busca Linear** | **$O(n)$** | Amarelo | $O(1)$ | $O(n)$ | $O(n)$ | $O(1)$ | Nenhum (funciona em lista desordenada) |
+| **Busca Binária** | **$O(\log n)$** | Verde | $O(1)$ | $O(\log n)$ | $O(\log n)$ | $O(1)$ | A lista precisa estar previamente ordenada |
 
 ### Análise teórica da comparação
 1. **Busca Linear ($O(n)$):** Inicia no primeiro elemento e examina item por item sequencialmente.
